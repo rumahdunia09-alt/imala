@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IMALA - Sistem Kasir Terpadu</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="IMALA">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="icon" type="image/png" href="https://github.com/user-attachments/assets/70f581ca-4652-42b6-829a-8a7952f6249a">
+    <link rel="apple-touch-icon" href="https://github.com/user-attachments/assets/70f581ca-4652-42b6-829a-8a7952f6249a">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        :root { 
+            --primary: #2c3e50; --success: #27ae60; --info: #3498db; 
+            --warning: #f39c12; --danger: #e74c3c; --light: #f4f7f6; 
+        }
+        
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: var(--light); color: #333; }
+        
+        /* LOGIN PAGE */
+        #loginPage { position: fixed; inset: 0; background: var(--primary); display: flex; justify-content: center; align-items: center; z-index: 9999; }
+        .login-card { background: white; padding: 40px; border-radius: 15px; width: 320px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        .logo-login { width: 80px; height: 80px; margin-bottom: 20px; border-radius: 50%; }
+
+        /* SIDEBAR */
+        #appContainer { display: none; min-height: 100vh; }
+        .sidebar { width: 240px; height: 100vh; background: var(--primary); position: fixed; color: white; display: flex; flex-direction: column; }
+        .sidebar-header { text-align: center; padding: 20px; border-bottom: 1px solid #34495e; }
+        .logo-sidebar { width: 50px; height: 50px; border-radius: 50%; border: 2px solid var(--success); }
+        
+        .nav-link { padding: 15px 25px; display: block; color: #bdc3c7; text-decoration: none; cursor: pointer; transition: 0.3s; }
+        .nav-link:hover, .nav-link.active { background: #34495e; color: white; border-left: 4px solid var(--success); }
+        .logout-btn { background: var(--danger); margin-top: auto; color: white; }
+
+        .main-content { margin-left: 240px; padding: 30px; }
+        .page { display: none; }
+        .page.active { display: block; }
+
+        /* UI ELEMENTS */
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        input, select { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        .btn { padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; color: white; width: 100%; }
+        .btn-success { background: var(--success); } 
+        .btn-danger { background: var(--danger); }
+        
+        .excel-table { width: 100%; border-collapse: collapse; background: white; font-size: 0.9rem; }
+        .excel-table th { background: #f8f9fa; border: 1px solid #dee2e6; padding: 12px; text-align: left; }
+        .excel-table td { border: 1px solid #dee2e6; padding: 10px; }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .stat-card { padding: 20px; border-radius: 10px; color: white; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div id="loginPage">
+    <div class="login-card">
+        <img src="https://github.com/user-attachments/assets/70f581ca-4652-42b6-829a-8a7952f6249a" class="logo-login">
+        <h3>IMALA LOGIN</h3>
+        <input type="text" id="username" placeholder="Username">
+        <input type="password" id="password" placeholder="Password">
+        <button class="btn btn-success" onclick="doLogin()">MASUK</button>
+    </div>
+</div>
+
+<div id="appContainer">
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <img src="https://github.com/user-attachments/assets/70f581ca-4652-42b6-829a-8a7952f6249a" class="logo-sidebar">
+            <h4 id="displayUser">USER</h4>
+        </div>
+        <div class="nav-link" onclick="showPage('dashboard')"><i class="fas fa-home"></i> Dashboard</div>
+        <div class="nav-link active" onclick="showPage('transaksi')"><i class="fas fa-shopping-cart"></i> Kasir</div>
+        <div id="menuAdminOnly">
+            <div class="nav-link" onclick="showPage('masterBarang')"><i class="fas fa-box"></i> Stok Barang</div>
+            <div class="nav-link" onclick="showPage('laporan')"><i class="fas fa-file-alt"></i> Laporan</div>
+        </div>
+        <div class="nav-link logout-btn" onclick="location.reload()"><i class="fas fa-sign-out-alt"></i> Keluar</div>
+    </div>
+
+    <div class="main-content">
+        <div id="transaksi" class="page active">
+            <h2><i class="fas fa-cash-register"></i> Kasir Penjualan</h2>
+            <div style="display: grid; grid-template-columns: 1fr 350px; gap: 20px;">
+                <div class="card">
+                    <input type="text" id="scanKasir" onkeypress="handleKasirScan(event)" placeholder="Scan Barcode / Ketik Nama Barang + Enter">
+                    <table class="excel-table">
+                        <thead><tr><th>Produk</th><th>Harga</th><th>Qty</th><th>Subtotal</th><th>#</th></tr></thead>
+                        <tbody id="keranjangTabel"></tbody>
+                    </table>
+                </div>
+                <div class="card">
+                    <h2 id="totalText" data-total="0">Total: Rp 0</h2>
+                    <input type="number" id="uangBayar" oninput="hitungKembalian()" placeholder="Jumlah Bayar">
+                    <h3 id="kembaliText">Kembali: Rp 0</h3>
+                    <button class="btn btn-success" onclick="prosesTransaksi()">PROSES & CETAK</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="dashboard" class="page">
+            <h2>Dashboard</h2>
+            <div id="dashStats" class="stats-grid"></div>
+        </div>
+
+        <div id="masterBarang" class="page">
+            <h2>Gudang Barang</h2>
+            <div style="display: grid; grid-template-columns: 300px 1fr; gap: 20px;">
+                <div class="card">
+                    <input type="hidden" id="editIdx" value="-1">
+                    <input type="text" id="mKode" placeholder="Barcode">
+                    <input type="text" id="mNama" placeholder="Nama">
+                    <input type="number" id="mModal" placeholder="Harga Modal">
+                    <input type="number" id="mJual" placeholder="Harga Jual">
+                    <input type="number" id="mStok" placeholder="Stok">
+                    <button class="btn btn-success" onclick="simpanBarang()">SIMPAN DATA</button>
+                </div>
+                <div class="card">
+                    <table class="excel-table">
+                        <thead><tr><th>Barcode</th><th>Nama</th><th>Stok</th><th>Aksi</th></tr></thead>
+                        <tbody id="tabelMaster"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="laporan" class="page">
+            <h2>Laporan Penjualan</h2>
+            <div class="card">
+                <table class="excel-table">
+                    <thead><tr><th>Waktu</th><th>ID Transaksi</th><th>Omzet</th><th>Laba</th></tr></thead>
+                    <tbody id="tabelLaporan"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- DATABASE ---
+    let dbBarang = JSON.parse(localStorage.getItem('v9_barang')) || [];
+    let dbUsers = JSON.parse(localStorage.getItem('v9_users')) || [{nama:'Owner', user:'admin', pass:'123', role:'admin'}];
+    let dbRiwayat = JSON.parse(localStorage.getItem('v9_riwayat')) || [];
+    let keranjang = [];
+
+    // --- LOGIN ---
+    function doLogin() {
+        const u = document.getElementById('username').value;
+        const p = document.getElementById('password').value;
+        const akun = dbUsers.find(x => x.user === u && x.pass === p);
+        if(akun) {
+            document.getElementById('loginPage').style.display = 'none';
+            document.getElementById('appContainer').style.display = 'block';
+            document.getElementById('displayUser').innerText = akun.nama;
+            document.getElementById('menuAdminOnly').style.display = akun.role === 'admin' ? 'block' : 'none';
+        } else { alert("Login Gagal!"); }
+    }
+
+    function showPage(id) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        if(id === 'masterBarang') renderMaster();
+        if(id === 'dashboard') renderDashboard();
+        if(id === 'laporan') renderLaporan();
+    }
+
+    // --- KASIR LOGIC ---
+    function handleKasirScan(e) {
+        if(e.key === 'Enter') {
+            const val = document.getElementById('scanKasir').value.trim();
+            const b = dbBarang.find(x => x.kode === val || x.nama.toLowerCase() === val.toLowerCase());
+            if(b) {
+                if(b.stok <= 0) return alert("Stok Habis!");
+                const ada = keranjang.find(k => k.kode === b.kode);
+                if(ada) {
+                    if(ada.qty < b.stok) ada.qty++; else alert("Stok limit!");
+                } else { keranjang.push({...b, qty:1}); }
+                renderKeranjang();
+            } else { alert("Barang tidak ditemukan!"); }
+            document.getElementById('scanKasir').value = '';
+        }
+    }
+
+    function renderKeranjang() {
+        const t = document.getElementById('keranjangTabel'); t.innerHTML = '';
+        let total = 0;
+        keranjang.forEach((k, i) => {
+            let sub = k.jual * k.qty; total += sub;
+            t.innerHTML += `<tr><td>${k.nama}</td><td>${k.jual.toLocaleString()}</td><td>${k.qty}</td><td>${sub.toLocaleString()}</td>
+            <td><button class="btn-danger" style="padding:5px" onclick="keranjang.splice(${i},1);renderKeranjang()">X</button></td></tr>`;
+        });
+        document.getElementById('totalText').innerText = "Total: Rp " + total.toLocaleString();
+        document.getElementById('totalText').setAttribute('data-total', total);
+        hitungKembalian();
+    }
+
+    function hitungKembalian() {
+        const total = parseInt(document.getElementById('totalText').getAttribute('data-total')) || 0;
+        const bayar = parseInt(document.getElementById('uangBayar').value) || 0;
+        document.getElementById('kembaliText').innerText = "Kembali: Rp " + (bayar - total).toLocaleString();
+    }
+
+    function prosesTransaksi() {
+        const total = parseInt(document.getElementById('totalText').getAttribute('data-total')) || 0;
+        const bayar = parseInt(document.getElementById('uangBayar').value) || 0;
+        if(keranjang.length === 0 || bayar < total) return alert("Cek Keranjang/Uang!");
+
+        let totalModal = 0;
+        keranjang.forEach(item => {
+            const idx = dbBarang.findIndex(b => b.kode === item.kode);
+            if(idx !== -1) {
+                dbBarang[idx].stok -= item.qty;
+                totalModal += (dbBarang[idx].modal * item.qty);
+            }
+        });
+
+        const trx = {
+            id: "TRX-" + Date.now(),
+            waktu: new Date().toLocaleString('id-ID'),
+            omzet: total, modal: totalModal, laba: total - totalModal,
+            items: [...keranjang], bayar: bayar, kembali: bayar - total
+        };
+
+        dbRiwayat.unshift(trx);
+        localStorage.setItem('v9_barang', JSON.stringify(dbBarang));
+        localStorage.setItem('v9_riwayat', JSON.stringify(dbRiwayat));
+        
+        cetakStruk(trx);
+        keranjang = []; document.getElementById('uangBayar').value = ''; renderKeranjang();
+        alert("Berhasil!");
+    }
+
+    function cetakStruk(t) {
+        const win = window.open('', '', 'width=300,height=400');
+        let items = t.items.map(i => `<tr><td>${i.nama} x${i.qty}</td><td align="right">${(i.qty*i.jual).toLocaleString()}</td></tr>`).join('');
+        win.document.write(`
+            <div style="font-family:monospace; font-size:12px; width:250px">
+                <center><strong>IMALA</strong><br>${t.waktu}</center><hr>
+                <table width="100%">${items}</table><hr>
+                <b>TOTAL: Rp ${t.omzet.toLocaleString()}</b><br>
+                BAYAR: Rp ${t.bayar.toLocaleString()}<br>
+                KEMBALI: Rp ${t.kembali.toLocaleString()}<hr>
+                <center>Terima Kasih</center>
+            </div>
+            <script>window.onload=function(){window.print();window.close();}<\/script>
+        `);
+    }
+
+    // --- ADMIN LOGIC ---
+    function renderMaster() {
+        const t = document.getElementById('tabelMaster'); t.innerHTML = '';
+        dbBarang.forEach((x, i) => {
+            t.innerHTML += `<tr><td>${x.kode}</td><td>${x.nama}</td><td>${x.stok}</td>
+            <td><button class="btn-danger" style="padding:5px" onclick="dbBarang.splice(${i},1);localStorage.setItem('v9_barang',JSON.stringify(dbBarang));renderMaster()">Hapus</button></td></tr>`;
+        });
+    }
+
+    function simpanBarang() {
+        const data = {
+            kode: document.getElementById('mKode').value,
+            nama: document.getElementById('mNama').value,
+            modal: parseInt(document.getElementById('mModal').value),
+            jual: parseInt(document.getElementById('mJual').value),
+            stok: parseInt(document.getElementById('mStok').value)
+        };
+        dbBarang.push(data);
+        localStorage.setItem('v9_barang', JSON.stringify(dbBarang));
+        renderMaster();
+    }
+
+    function renderDashboard() {
+        const omzet = dbRiwayat.reduce((a,b) => a + b.omzet, 0);
+        const laba = dbRiwayat.reduce((a,b) => a + b.laba, 0);
+        document.getElementById('dashStats').innerHTML = `
+            <div class="stat-card" style="background:var(--info)"><h3>Produk</h3><h2>${dbBarang.length}</h2></div>
+            <div class="stat-card" style="background:var(--success)"><h3>Omzet</h3><h2>Rp ${omzet.toLocaleString()}</h2></div>
+            <div class="stat-card" style="background:var(--warning)"><h3>Laba</h3><h2>Rp ${laba.toLocaleString()}</h2></div>
+        `;
+    }
+
+    function renderLaporan() {
+        const t = document.getElementById('tabelLaporan'); t.innerHTML = '';
+        dbRiwayat.forEach(x => {
+            t.innerHTML += `<tr><td>${x.waktu}</td><td>${x.id}</td><td>${x.omzet.toLocaleString()}</td><td>${x.laba.toLocaleString()}</td></tr>`;
+        });
+    }
+</script>
+</body>
+</html>
+
